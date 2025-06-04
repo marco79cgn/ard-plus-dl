@@ -2,7 +2,6 @@
 Ein kleines Skript bzw. Tool zum herunterladen von Videos bei [ARD Plus](https://www.ardplus.de/).
 ![Bildschirmfoto 2023-12-29 um 17 25 27](https://user-images.githubusercontent.com/9810829/293396091-2b2a6fc9-91ab-43f6-81c4-670bcd4762f1.png)
 ## Anforderungen
-
 - Shell/Bash (z.B. macOS Terminal)
 - [jq](https://jqlang.github.io/jq/)
 - [yt-dlp](https://github.com/yt-dlp/yt-dlp)
@@ -54,10 +53,10 @@ Dabei wird das aktuelle Host Verzeichnis `$(pwd)` genutzt, aus dem der Befehl au
 
 **Optional:**
 
-Instead of building your own Docker image, you can also use the existing one from this Github Repository which is automatically created and updated by Github Actions: `ghcr.io/marco79cgn/ard-plus-dl`. 
+Statt selbst ein Docker image zu bauen kann auch das existierende aus diesem Github Repository benutzt werden: `ghcr.io/marco79cgn/ard-plus-dl`. 
 
-In this case, you don't have to install or build anything, just run: 
+In diesem Fall muss nichts selbst installiert oder gebaut werden. Es reicht dieser Befehl: 
 ```
 docker run --rm -it -v $(pwd)/:/data ghcr.io/marco79cgn/ard-plus-dl download '<url>' 'username' 'password'
 ```
-There might be a warning that the container was not built for your specific platform but it should work nontheless.
+Vermutlich wird eine Warnung ausgegeben, dass das Image nicht für die spezifische Platform erstellt wurde, aber es sollte dennoch funktionieren (getestet unter `macOS` und `Raspberry Pi OS (bookworm)`).
