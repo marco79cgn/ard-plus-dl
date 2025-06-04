@@ -1,4 +1,7 @@
 #!/bin/bash
+curlBin=$(which curl)
+# use snap curl version if your OS is outdated
+#curlBin=/snap/bin/curl
 FILE=ard-plus-token
 # parse input parameter
 ardPlusUrl=$1
@@ -24,7 +27,7 @@ fi
 
 # login only if necessary
 login() {
-    token=$(curl -is 'https://auth.ardplus.de/auth/login?plainRedirect=true&redirectURL=https%3A%2F%2Fwww.ardplus.de%2Flogin%2Fcallback&errorRedirectURL=https%3A%2F%2Fwww.ardplus.de%2Fanmeldung%3Ferror%3Dtrue' \
+    token=$("$curlBin" -is 'https://auth.ardplus.de/auth/login?plainRedirect=true&redirectURL=https%3A%2F%2Fwww.ardplus.de%2Flogin%2Fcallback&errorRedirectURL=https%3A%2F%2Fwww.ardplus.de%2Fanmeldung%3Ferror%3Dtrue' \
     -H 'authority: auth.ardplus.de' \
     -H 'content-type: application/x-www-form-urlencoded' \
     -H 'origin: https://www.ardplus.de' \
@@ -42,7 +45,7 @@ login() {
 
 # cleanup after each episode and at the end
 cleanup() {
-    deleteToken=$(curl -s 'https://token.ardplus.de/token/session/playback/delete' \
+    deleteToken=$("$curlBin" -s 'https://token.ardplus.de/token/session/playback/delete' \
     -H 'authority: token.ardplus.de' \
     -H 'content-type: application/json' \
     -H "cookie: sid=$token" \
@@ -55,7 +58,7 @@ cleanup() {
 
 # get authorization for content
 auth() {
-    auth=$(curl -s 'https://token.ardplus.de/token/session' \
+    auth=$("$curlBin" -s 'https://token.ardplus.de/token/session' \
         -H 'authority: token.ardplus.de' \
         -H 'content-type: application/json' \
         -H "cookie: sid=$token" \
@@ -100,7 +103,7 @@ cleanup
 
 # get requested content
 contentUrl="https://data.ardplus.de/ard/graphql?extensions=%7B%22persistedQuery%22%3A%7B%22version%22%3A1%2C%22sha256Hash%22%3A%2240d7cbfb79e6675c80aae2d44da2a7f74e4a4ee913b5c31b37cf9522fa64d63b%22%7D%7D&variables=%7B%22movieId%22%3A%22$showId%22%2C%22externalId%22%3A%22%22%2C%22slug%22%3A%22%22%2C%22potentialMovieId%22%3A%22%22%7D"
-seasonsStatus=$(curl -s -o content-result.txt -w "%{http_code}" "${contentUrl}" \
+seasonsStatus=$("$curlBin" -s -o content-result.txt -w "%{http_code}" "${contentUrl}" \
     -H 'authority: data.ardplus.de' \
     -H 'content-type: application/json' \
     -H "cookie: sid=$token" \
@@ -111,7 +114,7 @@ if [[ $seasonsStatus != "200" ]]; then
     #retry once
     echo "Couldn't get season details. Trying again!"
     sleep 2
-    seasonsStatus=$(curl -s -o content-result.txt -w "%{http_code}" "${contentUrl}" \
+    seasonsStatus=$("$curlBin" -s -o content-result.txt -w "%{http_code}" "${contentUrl}" \
     -H 'authority: data.ardplus.de' \
     -H 'content-type: application/json' \
     -H "cookie: sid=$token" \
@@ -149,7 +152,7 @@ elif [[ "$tvshow" != null ]]; then
     read -r selectedSeason
     selectedSeasonId=$(echo "$seasonIds" | jq -r --argjson index 1 ".[$((selectedSeason - 1))].seasonId")
 
-    seasonData=$(curl -s "https://data.ardplus.de/ard/graphql?extensions=%7B%22persistedQuery%22%3A%7B%22version%22%3A1%2C%22sha256Hash%22%3A%22134d75e1e68a9599d1cdccf790839d9d71d2e7d7dca57d96f95285fcfd02b2ae%22%7D%7D&variables=%7B%22seasonId%22%3A%22$selectedSeasonId%22%7D&operationName=EpisodesInSeasonData" \
+    seasonData=$("$curlBin" -s "https://data.ardplus.de/ard/graphql?extensions=%7B%22persistedQuery%22%3A%7B%22version%22%3A1%2C%22sha256Hash%22%3A%22134d75e1e68a9599d1cdccf790839d9d71d2e7d7dca57d96f95285fcfd02b2ae%22%7D%7D&variables=%7B%22seasonId%22%3A%22$selectedSeasonId%22%7D&operationName=EpisodesInSeasonData" \
     -H 'authority: data.ardplus.de' \
     -H 'content-type: application/json' \
     -H "cookie: sid=$token" \
@@ -183,7 +186,7 @@ elif [[ "$tvshow" != null ]]; then
 elif [[ "$ardPlusUrl" == *"tatort"* ]]; then
     tatortCity=$(echo $showPath | cut -d "-" -f2)
     # get all episodes per city
-    tatortCityEpisodes=$(curl -s "https://data.ardplus.de/ard/graphql?operationName=CategoryDataBySlug&variables=%7B%22slug%22%3A%22tatort-$tatortCity%22%7D&extensions=%7B%22persistedQuery%22%3A%7B%22version%22%3A1%2C%22sha256Hash%22%3A%221bf6e600fa91aa72bba35ee95a53677cf21b994a4c2afbcd01127259c7e88612%22%7D%7D" \
+    tatortCityEpisodes=$("$curlBin" -s "https://data.ardplus.de/ard/graphql?operationName=CategoryDataBySlug&variables=%7B%22slug%22%3A%22tatort-$tatortCity%22%7D&extensions=%7B%22persistedQuery%22%3A%7B%22version%22%3A1%2C%22sha256Hash%22%3A%221bf6e600fa91aa72bba35ee95a53677cf21b994a4c2afbcd01127259c7e88612%22%7D%7D" \
     --header 'authority: data.ardplus.de' \
     --header 'content-type: application/json' \
     --header "cookie: sid=$token" \
@@ -205,7 +208,7 @@ elif [[ "$ardPlusUrl" == *"tatort"* ]]; then
     do
         movieId=$(echo "$episode" | jq -r '.id')        
         episodeUrl="https://data.ardplus.de/ard/graphql?operationName=MovieDetails&variables=%7B%22movieId%22%3A%22$movieId%22%2C%22externalId%22%3A%22%22%2C%22slug%22%3A%22%22%2C%22potentialMovieId%22%3A%22%22%7D&extensions=%7B%22persistedQuery%22%3A%7B%22version%22%3A1%2C%22sha256Hash%22%3A%226a791c24fd9716b154a3d68f9b5213eb0bf25828a5e633cdbbd2e35aa5b9a984%22%7D%7D"
-        episodeDetailsStatus=$(curl -s -o current-tatort-episode.txt -w "%{http_code}" "${episodeUrl}" \
+        episodeDetailsStatus=$("$curlBin" -s -o current-tatort-episode.txt -w "%{http_code}" "${episodeUrl}" \
             -H 'authority: data.ardplus.de' \
             -H 'content-type: application/json' \
             -H "cookie: sid=$token" \
@@ -217,7 +220,7 @@ elif [[ "$ardPlusUrl" == *"tatort"* ]]; then
             #retry once
             echo "Couldn't get episode details. Trying again!"
             sleep 2
-            episodeDetailsStatus=$(curl -s -o current-tatort-episode.txt -w "%{http_code}" $episodeUrl \
+            episodeDetailsStatus=$("$curlBin" -s -o current-tatort-episode.txt -w "%{http_code}" $episodeUrl \
             -H 'authority: data.ardplus.de' \
             -H 'content-type: application/json' \
             -H "cookie: sid=$token" \
