@@ -51,3 +51,13 @@ docker build -t ard-plus-dl .
 docker run --rm -it -v $(pwd)/:/data ard-plus-dl download 'https://www.ardplus.de/details/a0T01000003LeBR-vorstadtweiber' 'username' 'password'
 ```
 Dabei wird das aktuelle Host Verzeichnis `$(pwd)` genutzt, aus dem der Befehl ausgeführt wird. Dort landen auch die Downloads.
+
+**Optional:**
+
+Instead of building your own Docker image, you can also use the existing one from this Github Repository which is automatically created and updated by Github Actions: `ghcr.io/marco79cgn/ard-plus-dl`. 
+
+In this case, you don't have to install or build anything, just run: 
+```
+docker run --rm -it -v $(pwd)/:/data ghcr.io/marco79cgn/ard-plus-dl download '<url>' 'username' 'password'
+```
+There might be a warning that the container was not built for your specific platform but it should work nontheless.
