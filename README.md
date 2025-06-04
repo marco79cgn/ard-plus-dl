@@ -34,7 +34,15 @@ Die Zieldateien werden sinnvoll benannt, z.B.:
 oder 
 `Lola rennt (1998).mp4`
 
-## Alternative: Docker
+## Docker
 Ein fertiges Docker Image kann über das vorhandene Dockerfile gebaut und benutzt werden. 
 
-Beispiel
+1. Checkout: 
+`git clone https://github.com/marco79cgn/ard-plus-dl.git`
+2. Build Docker image: 
+`docker build -t ard-plus-dl .`
+3. Download content: 
+```
+docker run --rm -it -v $(pwd)/:/data ard-plus-dl download 'https://www.ardplus.de/details/a0T01000003LeBR-vorstadtweiber' 'username' 'password'
+```
+Dabei wird das aktuelle Host Verzeichnis `$(pwd)` genutzt, aus dem der Befehl ausgeführt wird. Dort landen auch die Downloads.
