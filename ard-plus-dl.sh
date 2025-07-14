@@ -27,13 +27,15 @@ fi
 
 # login only if necessary
 login() {
+    encoded_username=$(printf %s "$username" | jq -s -R -r @uri)
+    encoded_password=$(printf %s "$password" | jq -s -R -r @uri)
     token=$("$curlBin" -is 'https://auth.ardplus.de/auth/login?plainRedirect=true&redirectURL=https%3A%2F%2Fwww.ardplus.de%2Flogin%2Fcallback&errorRedirectURL=https%3A%2F%2Fwww.ardplus.de%2Fanmeldung%3Ferror%3Dtrue' \
     -H 'authority: auth.ardplus.de' \
     -H 'content-type: application/x-www-form-urlencoded' \
     -H 'origin: https://www.ardplus.de' \
     -H 'referer: https://www.ardplus.de/' \
     -H 'user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36' \
-    --data-raw "username=${username}&password=${password}" | grep -i authorization | awk '{print $3}')
+    --data-raw "username=${encoded_username}&password=${encoded_password}" | grep -i authorization | awk '{print $3}')
     tokenType=$(echo $token | cut -f1 -d "." | base64 -d | jq -r '.typ')
     if [[ "$tokenType" == "JWT" ]]; then
         echo $token > $FILE
