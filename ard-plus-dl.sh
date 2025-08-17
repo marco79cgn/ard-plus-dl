@@ -144,14 +144,14 @@ if [[ "$movie" != null ]]; then
     name=$(echo "$movie" | jq -r '.title')
     videoUrl=$(echo "$movie" | jq -r '.videoSource.dashUrl')
     year=$(echo "$movie" | jq -r '.productionYear')
-    filename="${name} (${year})"
+    filename="${name} (${year})/${name}"
     urlParam=$( auth )
     downloadUrl=${videoUrl}?${urlParam}
     echo "Lade Film ${filename}..."
     yt-dlp --quiet --progress --no-warnings --audio-multistreams -f "bv+mergeall[vcodec=none]" --sub-langs "en.*,de.*" --embed-subs --merge-output-format mp4 ${downloadUrl} -o "$filename"
     cleanup
 elif [[ "$tvshow" != null ]]; then
-    requestedShow=$(echo "$contentResult" | jq '.data.series.title')
+    requestedShow=$(echo "$contentResult" | jq -r '.data.series.title')
     seasonIds=$(echo "$contentResult" | jq '[.data.series.seasons.nodes[] | { season: .seasonInSeries, seasonId: .id, title: .title }]')
     seasonCount=$(echo "$contentResult" | jq '[.data.series.seasons.nodes[] | { season: .seasonId }] | length')
     seasonOutput=$(echo "$seasonIds" | jq '[.[] | { Option: .season, Titel: .title }]' | jq -r '(.[0]|keys_unsorted|(.,map(length*"-"))),.[]|map(.)|@tsv'|column -ts $'\t')
@@ -195,7 +195,7 @@ elif [[ "$tvshow" != null ]]; then
             name=$(echo "$episode" | jq -r '.title')
             videoUrl=$(echo "$episode" | jq -r '.videoUrl')
             episode=$(echo "$episode" | jq -r '.episodeNo')
-            filename="S${selectedSeasonFormatted}E$(printf '%02d\n' $episode) - ${name}"
+            filename="${requestedShow}/Season ${selectedSeasonFormatted}/${requestedShow} S${selectedSeasonFormatted}E$(printf '%02d\n' $episode) - ${name}"
             urlParam=$( auth )
             downloadUrl=${videoUrl}?${urlParam}
             echo "Lade ${filename}..."
