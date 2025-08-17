@@ -32,6 +32,8 @@ then
     skip=1
 fi
 
+content_result=$(mktemp)
+
 # login only if necessary
 login() {
     encoded_username=$(printf %s "$username" | jq -s -R -r @uri)
@@ -84,6 +86,7 @@ auth() {
 term() {
     echo "CTRL+C pressed. Cleanup and exit!"
     cleanup
+    rm -f $content_result
     exit 0
 }
 trap term SIGINT
@@ -112,7 +115,7 @@ cleanup
 
 # get requested content
 contentUrl="https://data.ardplus.de/ard/graphql?extensions=%7B%22persistedQuery%22%3A%7B%22version%22%3A1%2C%22sha256Hash%22%3A%2240d7cbfb79e6675c80aae2d44da2a7f74e4a4ee913b5c31b37cf9522fa64d63b%22%7D%7D&variables=%7B%22movieId%22%3A%22$showId%22%2C%22externalId%22%3A%22%22%2C%22slug%22%3A%22%22%2C%22potentialMovieId%22%3A%22%22%7D"
-seasonsStatus=$("$curlBin" -s -o content-result.txt -w "%{http_code}" "${contentUrl}" \
+seasonsStatus=$("$curlBin" -s -o $content_result -w "%{http_code}" "${contentUrl}" \
     -H 'authority: data.ardplus.de' \
     -H 'content-type: application/json' \
     -H "cookie: sid=$token" \
@@ -123,16 +126,16 @@ if [[ $seasonsStatus != "200" ]]; then
     #retry once
     echo "Couldn't get season details. Trying again!"
     sleep 2
-    seasonsStatus=$("$curlBin" -s -o content-result.txt -w "%{http_code}" "${contentUrl}" \
+    seasonsStatus=$("$curlBin" -s -o $content_result -w "%{http_code}" "${contentUrl}" \
     -H 'authority: data.ardplus.de' \
     -H 'content-type: application/json' \
     -H "cookie: sid=$token" \
     -H 'origin: https://www.ardplus.de' \
     -H 'referer: https://www.ardplus.de/' \
     -H 'user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36')
-    contentResult=$(cat content-result.txt)
+    contentResult=$(cat $content_result)
 else
-    contentResult=$(cat content-result.txt)
+    contentResult=$(cat $content_result)
 fi
 
 # check whether content is movie or series
@@ -144,7 +147,7 @@ if [[ "$movie" != null ]]; then
     name=$(echo "$movie" | jq -r '.title')
     videoUrl=$(echo "$movie" | jq -r '.videoSource.dashUrl')
     year=$(echo "$movie" | jq -r '.productionYear')
-    filename="${name} (${year})/${name}"
+    filename="${name/\// } (${year})/${name/\// }"
     urlParam=$( auth )
     downloadUrl=${videoUrl}?${urlParam}
     echo "Lade Film ${filename}..."
@@ -195,7 +198,7 @@ elif [[ "$tvshow" != null ]]; then
             name=$(echo "$episode" | jq -r '.title')
             videoUrl=$(echo "$episode" | jq -r '.videoUrl')
             episode=$(echo "$episode" | jq -r '.episodeNo')
-            filename="${requestedShow}/Season ${selectedSeasonFormatted}/${requestedShow} S${selectedSeasonFormatted}E$(printf '%02d\n' $episode) - ${name}"
+            filename="${requestedShow/\// }/Season ${selectedSeasonFormatted}/${requestedShow/\// } S${selectedSeasonFormatted}E$(printf '%02d\n' $episode) - ${name}"
             urlParam=$( auth )
             downloadUrl=${videoUrl}?${urlParam}
             echo "Lade ${filename}..."
