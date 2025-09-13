@@ -4,6 +4,13 @@ curlBin=$(which curl)
 #curlBin=/snap/bin/curl
 FILE=ard-plus-token
 # parse input parameter
+if [ "$1" == "--automatic" ]
+then
+  automatic_download=1
+  shift
+else
+  automatic_download=0
+fi
 ardPlusUrl=$1
 username=$2
 password=$3
@@ -25,6 +32,8 @@ then
     skip=1
 fi
 
+content_result=$(mktemp)
+
 # login only if necessary
 login() {
     encoded_username=$(printf %s "$username" | jq -s -R -r @uri)
@@ -35,7 +44,7 @@ login() {
     -H 'origin: https://www.ardplus.de' \
     -H 'referer: https://www.ardplus.de/' \
     -H 'user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36' \
-    --data-raw "username=${encoded_username}&password=${encoded_password}" | grep -i authorization | awk '{print $3}')
+    --data-raw "username=${encoded_username}&password=${encoded_password}" | grep -i authorization | awk '{print $3}' | tr -d \\r)
     tokenType=$(echo $token | cut -f1 -d "." | base64 -d | jq -r '.typ')
     if [[ "$tokenType" == "JWT" ]]; then
         echo $token | tr -d \\r > $FILE
@@ -77,6 +86,7 @@ auth() {
 term() {
     echo "CTRL+C pressed. Cleanup and exit!"
     cleanup
+    rm -f $content_result
     exit 0
 }
 trap term SIGINT
@@ -105,7 +115,7 @@ cleanup
 
 # get requested content
 contentUrl="https://data.ardplus.de/ard/graphql?extensions=%7B%22persistedQuery%22%3A%7B%22version%22%3A1%2C%22sha256Hash%22%3A%2240d7cbfb79e6675c80aae2d44da2a7f74e4a4ee913b5c31b37cf9522fa64d63b%22%7D%7D&variables=%7B%22movieId%22%3A%22$showId%22%2C%22externalId%22%3A%22%22%2C%22slug%22%3A%22%22%2C%22potentialMovieId%22%3A%22%22%7D"
-seasonsStatus=$("$curlBin" -s -o content-result.txt -w "%{http_code}" "${contentUrl}" \
+seasonsStatus=$("$curlBin" -s -o $content_result -w "%{http_code}" "${contentUrl}" \
     -H 'authority: data.ardplus.de' \
     -H 'content-type: application/json' \
     -H "cookie: sid=$token" \
@@ -116,16 +126,16 @@ if [[ $seasonsStatus != "200" ]]; then
     #retry once
     echo "Couldn't get season details. Trying again!"
     sleep 2
-    seasonsStatus=$("$curlBin" -s -o content-result.txt -w "%{http_code}" "${contentUrl}" \
+    seasonsStatus=$("$curlBin" -s -o $content_result -w "%{http_code}" "${contentUrl}" \
     -H 'authority: data.ardplus.de' \
     -H 'content-type: application/json' \
     -H "cookie: sid=$token" \
     -H 'origin: https://www.ardplus.de' \
     -H 'referer: https://www.ardplus.de/' \
     -H 'user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36')
-    contentResult=$(cat content-result.txt)
+    contentResult=$(cat $content_result)
 else
-    contentResult=$(cat content-result.txt)
+    contentResult=$(cat $content_result)
 fi
 
 # check whether content is movie or series
@@ -137,54 +147,67 @@ if [[ "$movie" != null ]]; then
     name=$(echo "$movie" | jq -r '.title')
     videoUrl=$(echo "$movie" | jq -r '.videoSource.dashUrl')
     year=$(echo "$movie" | jq -r '.productionYear')
-    filename="${name} (${year})"
+    filename="${name/\// } (${year})/${name/\// }"
     urlParam=$( auth )
     downloadUrl=${videoUrl}?${urlParam}
     echo "Lade Film ${filename}..."
     yt-dlp --quiet --progress --no-warnings --audio-multistreams -f "bv+mergeall[vcodec=none]" --sub-langs "en.*,de.*" --embed-subs --merge-output-format mp4 ${downloadUrl} -o "$filename"
     cleanup
 elif [[ "$tvshow" != null ]]; then
-    requestedShow=$(echo "$contentResult" | jq '.data.series.title')
+    requestedShow=$(echo "$contentResult" | jq -r '.data.series.title')
     seasonIds=$(echo "$contentResult" | jq '[.data.series.seasons.nodes[] | { season: .seasonInSeries, seasonId: .id, title: .title }]')
+    seasonCount=$(echo "$contentResult" | jq '[.data.series.seasons.nodes[] | { season: .seasonId }] | length')
     seasonOutput=$(echo "$seasonIds" | jq '[.[] | { Option: .season, Titel: .title }]' | jq -r '(.[0]|keys_unsorted|(.,map(length*"-"))),.[]|map(.)|@tsv'|column -ts $'\t')
     echo -e "\nGewünschte Serie: $requestedShow\n"
     echo -e "$seasonOutput\n"
 
-    echo -n "Welche Staffel möchtest du runterladen? "
-    read -r selectedSeason
-    selectedSeasonId=$(echo "$seasonIds" | jq -r --argjson index 1 ".[$((selectedSeason - 1))].seasonId")
-
-    seasonData=$("$curlBin" -s "https://data.ardplus.de/ard/graphql?extensions=%7B%22persistedQuery%22%3A%7B%22version%22%3A1%2C%22sha256Hash%22%3A%22134d75e1e68a9599d1cdccf790839d9d71d2e7d7dca57d96f95285fcfd02b2ae%22%7D%7D&variables=%7B%22seasonId%22%3A%22$selectedSeasonId%22%7D&operationName=EpisodesInSeasonData" \
-    -H 'authority: data.ardplus.de' \
-    -H 'content-type: application/json' \
-    -H "cookie: sid=$token" \
-    -H 'origin: https://www.ardplus.de' \
-    -H 'referer: https://www.ardplus.de/' \
-    -H 'user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36')
-    episodes=$(echo $seasonData | jq '[.data.episodes.nodes[] | { id: .id, episodeNo: .episodeInSeason, title: .title, videoUrl: .videoSource.dashUrl }]')
-    amount=$(echo $episodes | jq '. | length')
-    echo -e "\nStaffel $selectedSeason hat $amount Folgen."
-    selectedSeasonFormatted=$(printf '%02d\n' "$selectedSeason")
-
-    if [[ $skip != "1" ]]; then
-        echo "Überspringe $skip Episode(n)."
-        skip=$((skip + 1))
+    if [ $automatic_download -eq 0 ]
+    then
+        echo -n "Welche Staffel möchtest du runterladen? "
+        read -r selectedSeasonList
+    else
+        selectedSeasonList=$(seq 1 $seasonCount)
     fi
 
-    # loop over all episodes and download each
-    while read episode
+    # loop over all seasons
+    for selectedSeason in $selectedSeasonList
     do
-        movieId=$(echo "$episode" | jq -r '.id')
-        name=$(echo "$episode" | jq -r '.title')
-        videoUrl=$(echo "$episode" | jq -r '.videoUrl')
-        episode=$(echo "$episode" | jq -r '.episodeNo')
-        filename="S${selectedSeasonFormatted}E$(printf '%02d\n' $episode) - ${name}"
-        urlParam=$( auth )
-        downloadUrl=${videoUrl}?${urlParam}
-        echo "Lade ${filename}..."
-        yt-dlp --quiet --progress --no-warnings --audio-multistreams -f "bv+mergeall[vcodec=none]" --sub-langs "en.*,de.*" --embed-subs --merge-output-format mp4 ${downloadUrl} -o "$filename"
-        cleanup
-    done < <(echo "$episodes" | sed 's/\\"//g' | jq -c '.[]' | tail -n +$skip)
+        selectedSeasonId=$(echo "$seasonIds" | jq -r --argjson index 1 ".[$((selectedSeason - 1))].seasonId")
+
+        seasonData=$("$curlBin" -s "https://data.ardplus.de/ard/graphql?extensions=%7B%22persistedQuery%22%3A%7B%22version%22%3A1%2C%22sha256Hash%22%3A%22134d75e1e68a9599d1cdccf790839d9d71d2e7d7dca57d96f95285fcfd02b2ae%22%7D%7D&variables=%7B%22seasonId%22%3A%22$selectedSeasonId%22%7D&operationName=EpisodesInSeasonData" \
+        -H 'authority: data.ardplus.de' \
+        -H 'content-type: application/json' \
+        -H "cookie: sid=$token" \
+        -H 'origin: https://www.ardplus.de' \
+        -H 'referer: https://www.ardplus.de/' \
+        -H 'user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36')
+        episodes=$(echo $seasonData | jq '[.data.episodes.nodes[] | { id: .id, episodeNo: .episodeInSeason, title: .title, videoUrl: .videoSource.dashUrl }]')
+        amount=$(echo $episodes | jq '. | length')
+        echo -e "\nStaffel $selectedSeason hat $amount Folgen."
+        selectedSeasonFormatted=$(printf '%02d\n' "$selectedSeason")
+
+        if [[ $skip != "1" ]]; then
+            echo "Überspringe $skip Episode(n)."
+            skip=$((skip + 1))
+        fi
+
+        # loop over all episodes and download each
+        while read episode
+        do
+            movieId=$(echo "$episode" | jq -r '.id')
+            name=$(echo "$episode" | jq -r '.title')
+            videoUrl=$(echo "$episode" | jq -r '.videoUrl')
+            episode=$(echo "$episode" | jq -r '.episodeNo')
+            filename="${requestedShow/\// }/Season ${selectedSeasonFormatted}/${requestedShow/\// } S${selectedSeasonFormatted}E$(printf '%02d\n' $episode) - ${name}"
+            urlParam=$( auth )
+            downloadUrl=${videoUrl}?${urlParam}
+            echo "Lade ${filename}..."
+            yt-dlp --quiet --progress --no-warnings --audio-multistreams -f "bv+mergeall[vcodec=none]" --sub-langs "en.*,de.*" --embed-subs --merge-output-format mp4 ${downloadUrl} -o "$filename"
+            cleanup
+        done < <(echo "$episodes" | sed 's/\\"//g' | jq -c '.[]' | tail -n +$skip)
+
+    done
+
 elif [[ "$ardPlusUrl" == *"tatort"* ]]; then
     tatortCity=$(echo $showPath | cut -d "-" -f2)
     # get all episodes per city
@@ -201,9 +224,14 @@ elif [[ "$ardPlusUrl" == *"tatort"* ]]; then
     amount=$(echo $tatortCityEpisodes | jq '.itemListElement | length')
     cityCapitalized=$(echo ${tatortCity} | awk '{$1=toupper(substr($1,0,1))substr($1,2)}1')
     echo "Der Tatort ${cityCapitalized} hat $amount Episoden."
-    echo -n "Wie viele Episoden möchtest du überspringen? (0=alle laden) "
-    read -r skip
-    echo "Überspringe $skip Episode(n)."
+    if [ $automatic_download -eq 0 ]
+    then
+        echo -n "Wie viele Episoden möchtest du überspringen? (0=alle laden) "
+        read -r skip
+        echo "Überspringe $skip Episode(n)."
+    else
+        skip=0
+    fi
     skip=$((skip + 1))
 
     # loop over all episodes and download each

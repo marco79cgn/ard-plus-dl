@@ -5,7 +5,7 @@ Ein kleines Skript bzw. Tool zum herunterladen von Videos bei [ARD Plus](https:/
 - Shell/Bash (z.B. macOS Terminal)
 - [jq](https://jqlang.github.io/jq/)
 - [yt-dlp](https://github.com/yt-dlp/yt-dlp)
-- Gnu-Tools: curl, grep, awk, echo, cut, sed, base64
+- Gnu-Tools: curl, grep, awk, echo, cut, sed, base64, tr
 - ARD Plus [Mitgliedschaft](https://www.ardplus.de/) (14 Tage kostenlos)
 
 ## Benutzung
@@ -15,7 +15,6 @@ Skript [downloaden](https://raw.githubusercontent.com/marco79cgn/ard-plus-dl/ref
 Anschließend das Skript aufrufen und drei Parameter mitgeben:
 `./ard-plus-dl.sh <url> <username> <password>` 
 
-Die `<url>` ist die Übersichtsseite eines Films oder einer Serie bei ARD Plus, zum Beispiel 
 
 - Gegen den Wind (Serie):
 `https://www.ardplus.de/details/a0T0100000064DB-gegen-den-wind`
@@ -24,6 +23,9 @@ Die `<url>` ist die Übersichtsseite eines Films oder einer Serie bei ARD Plus, 
 
 Das Skript erkennt automatisch, ob es sich um einen Film oder eine Serie handelt. Filme werden unmittelbar geladen. Im Falle einer Serie werden alle gefundenen Staffeln aufgelistet und zur Auswahl angeboten. 
 
+Vor den drei Parametern kann optional noch "--automatic" angegeben werden: Falls dieses Flag übergeben wird, erfolgt der Download automatisch ohne Rückfrage; bei Serien werden dann automatisch alle Staffeln heruntergeladen. Falls der Download abbrechen oder z.B. eine Staffel nicht geladen werden sollte, kann das Skript einfach erneut gestartet werden; es werden nur die fehlenden Episoden heruntergeladen.
+
+Die `<url>` ist die Übersichtsseite eines Films oder einer Serie bei ARD Plus, zum Beispiel 
 Filme und Serien werden automatisch mit mehreren Tonspuren geladen (z.B. deutsch & englisch), sofern verfügbar. Auch die Untertitel werden berücksichtigt.
 
 Es können zusätzlich zu Filmen und Serien auch ganze Tatort Ausgaben pro Stadt geladen werden, z.B. alle Folgen aus Bremen mit der URL:
