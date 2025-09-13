@@ -210,8 +210,7 @@ elif [[ "$ardPlusUrl" == *"tatort"* ]]; then
     while read episode
     do
         episodeId=$(echo "$episode" | jq -r '.item.url' | sed -E 's#.*/details/([^/-]+).*#\1#')
-
-        episodeUrl="https://data.ardplus.de/ard/graphql?extensions=%7B%22persistedQuery%22%3A%7B%22version%22%3A1%2C%22sha256Hash%22%3A%2240d7cbfb79e6675c80aae2d44da2a7f74e4a4ee913b5c31b37cf9522fa64d63b%22%7D%7D&variables=%7B%22movieId%22%3A%22$episodeId%22%2C%22externalId%22%3A%22a0S010000009J6G%22%2C%22slug%22%3A%22a0S010000009J6G%22%2C%22potentialMovieId%22%3A%22$episodeId%22%7D&operationName=MovieDetails"
+        episodeUrl="https://data.ardplus.de/ard/graphql?extensions=%7B%22persistedQuery%22%3A%7B%22version%22%3A1%2C%22sha256Hash%22%3A%2240d7cbfb79e6675c80aae2d44da2a7f74e4a4ee913b5c31b37cf9522fa64d63b%22%7D%7D&variables=%7B%22movieId%22%3A%22$episodeId%22%2C%22externalId%22%3A%22%22%2C%22slug%22%3A%22%22%2C%22potentialMovieId%22%3A%22%22%7D"
 
         episodeDetailsStatus=$("$curlBin" -s -o current-tatort-episode.txt -w "%{http_code}" "${episodeUrl}" \
             -H 'authority: data.ardplus.de' \
