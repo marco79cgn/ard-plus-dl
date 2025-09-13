@@ -1,6 +1,6 @@
 FROM alpine:3.22.0
 
-RUN apk add --no-cache bash && apk add --no-cache curl && apk add --no-cache yt-dlp && apk add --no-cache jq && apk add --no-cache util-linux 
+RUN apk add --no-cache bash && apk add --no-cache curl && apk add --no-cache yt-dlp && apk add --no-cache jq && apk add --no-cache util-linux && apk add --no-cache perl 
 
 WORKDIR /app
 
