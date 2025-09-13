@@ -38,7 +38,7 @@ login() {
     --data-raw "username=${encoded_username}&password=${encoded_password}" | grep -i authorization | awk '{print $3}')
     tokenType=$(echo $token | cut -f1 -d "." | base64 -d | jq -r '.typ')
     if [[ "$tokenType" == "JWT" ]]; then
-        echo $token > $FILE
+        echo $token | tr -d \\r > $FILE
     else
         echo "Login not possible! Please check credentials and subscription for user $username."
         exit 1
