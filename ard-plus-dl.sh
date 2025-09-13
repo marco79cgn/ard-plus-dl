@@ -188,16 +188,17 @@ elif [[ "$tvshow" != null ]]; then
 elif [[ "$ardPlusUrl" == *"tatort"* ]]; then
     tatortCity=$(echo $showPath | cut -d "-" -f2)
     # get all episodes per city
-    tatortCityEpisodes=$("$curlBin" -s "https://data.ardplus.de/ard/graphql?operationName=CategoryDataBySlug&variables=%7B%22slug%22%3A%22tatort-$tatortCity%22%7D&extensions=%7B%22persistedQuery%22%3A%7B%22version%22%3A1%2C%22sha256Hash%22%3A%221bf6e600fa91aa72bba35ee95a53677cf21b994a4c2afbcd01127259c7e88612%22%7D%7D" \
+    tatortResponse=$("$curlBin" -s "https://www.ardplus.de/kategorie/$showPath" \
     --header 'authority: data.ardplus.de' \
     --header 'content-type: application/json' \
     --header "cookie: sid=$token" \
     --header 'origin: https://www.ardplus.de' \
     --header 'referer: https://www.ardplus.de/' \
     --header 'user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36')
-    episodeIds=$(echo "$tatortCityEpisodes" | jq '[.data.category.content.nodes[] | { id: .contentMovie.id }]')
 
-    amount=$(echo $episodeIds | jq '. | length')
+    tatortCityEpisodes=$(echo $tatortResponse | perl -0777 -ne 'print "$1\n" if /<script type="application\/ld\+json">\s*(.*?)\s*<\/script>/s')
+
+    amount=$(echo $tatortCityEpisodes | jq '.itemListElement | length')
     cityCapitalized=$(echo ${tatortCity} | awk '{$1=toupper(substr($1,0,1))substr($1,2)}1')
     echo "Der Tatort ${cityCapitalized} hat $amount Episoden."
     echo -n "Wie viele Episoden möchtest du überspringen? (0=alle laden) "
@@ -208,8 +209,10 @@ elif [[ "$ardPlusUrl" == *"tatort"* ]]; then
     # loop over all episodes and download each
     while read episode
     do
-        movieId=$(echo "$episode" | jq -r '.id')        
-        episodeUrl="https://data.ardplus.de/ard/graphql?operationName=MovieDetails&variables=%7B%22movieId%22%3A%22$movieId%22%2C%22externalId%22%3A%22%22%2C%22slug%22%3A%22%22%2C%22potentialMovieId%22%3A%22%22%7D&extensions=%7B%22persistedQuery%22%3A%7B%22version%22%3A1%2C%22sha256Hash%22%3A%226a791c24fd9716b154a3d68f9b5213eb0bf25828a5e633cdbbd2e35aa5b9a984%22%7D%7D"
+        movieId=$(echo "$episode" | jq -r '.item.url' | sed -E 's#.*/details/([^/-]+).*#\1#')  
+
+        episodeUrl="https://data.ardplus.de/ard/graphql?extensions=%7B%22persistedQuery%22%3A%7B%22version%22%3A1%2C%22sha256Hash%22%3A%2240d7cbfb79e6675c80aae2d44da2a7f74e4a4ee913b5c31b37cf9522fa64d63b%22%7D%7D&variables=%7B%22movieId%22%3A%22a0S010000009J6G%22%2C%22externalId%22%3A%22a0S010000009J6G%22%2C%22slug%22%3A%22a0S010000009J6G%22%2C%22potentialMovieId%22%3A%22$movieId%22%7D&operationName=MovieDetails"
+
         episodeDetailsStatus=$("$curlBin" -s -o current-tatort-episode.txt -w "%{http_code}" "${episodeUrl}" \
             -H 'authority: data.ardplus.de' \
             -H 'content-type: application/json' \
@@ -258,7 +261,7 @@ elif [[ "$ardPlusUrl" == *"tatort"* ]]; then
         yt-dlp --quiet --progress --no-warnings --audio-multistreams -f "bv+mergeall[vcodec=none]" --sub-langs "en.*,de.*" --embed-subs --merge-output-format mp4 ${downloadUrl} -o "$filename"
         cleanup
         sleep 1
-    done < <(echo "$episodeIds" | jq -c '.[]' | tail -n +$skip )
+    done < <(echo "$tatortCityEpisodes" | jq -c '.itemListElement[]' | tail -n +$skip )
 else 
     echo "invalid content"
 fi
