@@ -4,6 +4,16 @@ curlBin=$(which curl)
 #curlBin=/snap/bin/curl
 FILE=ard-plus-token
 
+# Load .env file if it exists (from script directory)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ENV_FILE="${SCRIPT_DIR}/.env"
+if [[ -f "$ENV_FILE" ]]; then
+    # Export variables from .env file (ignoring comments and empty lines)
+    set -o allexport
+    source "$ENV_FILE"
+    set +o allexport
+fi
+
 # Default values
 outputDir="."
 skip=1
@@ -12,7 +22,12 @@ token=''
 
 # Function to show usage
 show_usage() {
-    echo "Usage: ./ard-plus-dl.sh <ard-plus-url> <username> <password> [options]"
+    echo "Usage: ./ard-plus-dl.sh <ard-plus-url> [options]"
+    echo ""
+    echo "Credentials are loaded from .env file in the script directory."
+    echo "Create a .env file with:"
+    echo "  ARD_USERNAME=your_username"
+    echo "  ARD_PASSWORD=your_password"
     echo ""
     echo "Options:"
     echo "  -o, --output-dir <dir>  Parent directory for downloads (default: current directory)"
@@ -25,9 +40,11 @@ show_usage() {
 
 # parse positional parameters first
 ardPlusUrl=$1
-username=$2
-password=$3
-shift 3 2>/dev/null
+shift 1 2>/dev/null
+
+# Load credentials from .env
+username="${ARD_USERNAME:-}"
+password="${ARD_PASSWORD:-}"
 
 # parse optional named parameters
 while [[ $# -gt 0 ]]; do
