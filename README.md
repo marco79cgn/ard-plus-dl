@@ -47,9 +47,12 @@ docker build -t ard-plus-dl .
 ```
 3. Download content: 
 ```
-docker run --rm -it -v $(pwd)/:/data ard-plus-dl download 'https://www.ardplus.de/details/a0T01000003LeBR-vorstadtweiber' 'username' 'password'
+docker run --rm -it -v $(pwd)/:/data ard-plus-dl download 'https://www.ardplus.de/details/a0T01000003LeBR-vorstadtweiber' "username" "password"
 ```
-Dabei wird das aktuelle Host Verzeichnis `$(pwd)` genutzt, aus dem der Befehl ausgeführt wird. Dort landen auch die Downloads.
+Dabei wird das aktuelle Host Verzeichnis `$(pwd)` genutzt, aus dem der Befehl ausgeführt wird. Dort landen auch die Downloads. Wichtig: Unter Windows gibt es keinen `$(pwd)` Befehl. Hier muss das lokale Verzeichnis mit Backslashes gemountet werden, z.B.
+```
+docker run --rm -it -v C:\Users\marco\movies:/data ard-plus-dl download 'https://www.ardplus.de/details/a0T01000003LeBR-vorstadtweiber' "username" "password"
+```
 
 **Optional:**
 
@@ -57,6 +60,5 @@ Statt selbst ein Docker image zu bauen kann auch das existierende aus diesem Git
 
 In diesem Fall muss nichts selbst installiert oder gebaut werden. Es reicht dieser Befehl: 
 ```
-docker run --rm -it -v $(pwd)/:/data ghcr.io/marco79cgn/ard-plus-dl download '<url>' 'username' 'password'
+docker run --rm -it -v $(pwd)/:/data ghcr.io/marco79cgn/ard-plus-dl download '<url>' "username" "password"
 ```
-Vermutlich wird eine Warnung ausgegeben, dass das Image nicht für die spezifische Platform erstellt wurde, aber es sollte dennoch funktionieren (getestet unter `macOS` und `Raspberry Pi OS (bookworm)`).
