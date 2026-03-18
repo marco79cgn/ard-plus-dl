@@ -12,7 +12,6 @@ import re
 import signal
 import subprocess
 import sys
-import tempfile
 import time
 import urllib.parse
 
@@ -30,7 +29,6 @@ BASE_HEADERS = {
     "referer": "https://www.ardplus.de/",
 }
 
-movie_id = ""
 token = ""
 
 
@@ -54,8 +52,10 @@ def login(username: str, password: str) -> str:
         allow_redirects=False,
     )
 
-    auth_header = resp.headers.get("authorization", "")
-    new_token = auth_header.strip()
+    # bash: grep -i authorization | awk '{print $3}' → 3rd whitespace field = raw JWT
+    auth_header = resp.headers.get("authorization", "").strip()
+    parts = auth_header.split()
+    new_token = parts[-1] if parts else ""
 
     if not new_token:
         print(
@@ -273,10 +273,12 @@ def download_series(token: str, content_result: dict, automatic: bool, skip: int
         season_fmt = f"{selected_season:02d}"
         print(f"\nStaffel {selected_season} hat {amount} Folgen.")
 
-        if skip != 1:
-            print(f"Überspringe {skip - 1} Episode(n).")
+        # bash: skip=1 means no skip; skip=N (N>=2) → tail -n +(N+1) = skip N episodes
+        actual_skip = 0 if skip == 1 else skip
+        if actual_skip:
+            print(f"Überspringe {actual_skip} Episode(n).")
 
-        for episode in episodes[skip - 1:]:
+        for episode in episodes[actual_skip:]:
             mid = episode["id"]
             name = sanitize(episode["title"])
             video_url = episode["videoSource"]["dashUrl"]
