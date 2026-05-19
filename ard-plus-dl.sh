@@ -164,7 +164,14 @@ elif [[ "$tvshow" != null ]]; then
     if [ $automatic_download -eq 0 ]
     then
         echo -n "Welche Staffel möchtest du runterladen? "
-        read -r selectedSeasonList
+        read -r selectedSeasonNumber
+        selectedSeasonList=$(echo "$seasonIds" | jq -r 'map(.season == '"$selectedSeasonNumber"') | index(true)')
+        if [ "$selectedSeasonList" = "null" ]; then
+          echo "Gewählte Staffel nicht Teil der Liste" >&2
+          exit 1
+        fi
+        # the code assumes a 1-based index
+        selectedSeasonList=$((selectedSeasonList+1))
     else
         selectedSeasonList=$(seq 1 $seasonCount)
     fi
@@ -173,6 +180,7 @@ elif [[ "$tvshow" != null ]]; then
     for selectedSeason in $selectedSeasonList
     do
         selectedSeasonId=$(echo "$seasonIds" | jq -r --argjson index 1 ".[$((selectedSeason - 1))].seasonId")
+        selectedSeasonNumber=$(echo "$seasonIds" | jq -r --argjson index 1 ".[$((selectedSeason - 1))].season")
 
         seasonData=$("$curlBin" -s "https://data.ardplus.de/ard/graphql?extensions=%7B%22persistedQuery%22%3A%7B%22version%22%3A1%2C%22sha256Hash%22%3A%22134d75e1e68a9599d1cdccf790839d9d71d2e7d7dca57d96f95285fcfd02b2ae%22%7D%7D&variables=%7B%22seasonId%22%3A%22$selectedSeasonId%22%7D&operationName=EpisodesInSeasonData" \
         -H 'authority: data.ardplus.de' \
@@ -183,8 +191,8 @@ elif [[ "$tvshow" != null ]]; then
         -H 'user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36')
         episodes=$(echo $seasonData | jq '[.data.episodes.nodes[] | { id: .id, episodeNo: .episodeInSeason, title: .title, videoUrl: .videoSource.dashUrl }]')
         amount=$(echo $episodes | jq '. | length')
-        echo -e "\nStaffel $selectedSeason hat $amount Folgen."
-        selectedSeasonFormatted=$(printf '%02d\n' "$selectedSeason")
+        echo -e "\nStaffel $selectedSeasonNumber hat $amount Folgen."
+        selectedSeasonFormatted=$(printf '%02d\n' "$selectedSeasonNumber")
 
         if [[ $skip != "1" ]]; then
             echo "Überspringe $skip Episode(n)."
