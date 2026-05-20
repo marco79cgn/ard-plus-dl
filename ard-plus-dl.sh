@@ -198,7 +198,11 @@ elif [[ "$tvshow" != null ]]; then
             name=$(echo "$episode" | jq -r '.title')
             videoUrl=$(echo "$episode" | jq -r '.videoUrl')
             episode=$(echo "$episode" | jq -r '.episodeNo')
-            filename="${requestedShow/\// }/Season ${selectedSeasonFormatted}/${requestedShow/\// } S${selectedSeasonFormatted}E$(printf '%02d\n' $episode) - ${name}"
+            filename="${requestedShow/\// }/Season ${selectedSeasonFormatted}/${requestedShow/\// } S${selectedSeasonFormatted}E$(printf '%02d\n' $episode) - ${name/\// - }"
+            if [ -e "${filename}.mp4" ]; then
+              echo "Existiert bereits: ${filename}.mp4" >&2
+              continue
+            fi
             urlParam=$( auth )
             downloadUrl=${videoUrl}?${urlParam}
             echo "Lade ${filename}..."
